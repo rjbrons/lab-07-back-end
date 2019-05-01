@@ -13,12 +13,10 @@ app.use(express.static('./'));
 
 app.get('/location', (req, res) => {
   try {
-    console.log(req.query);
     const queryData = req.query.data;
     let geoURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=
     ${process.env.GOOGLE_MAPS_API_KEY}`;
     superagent.get(geoURL).end((err, mapsResponse) => {
-      console.log('env var ' + process.env.GOOGLE_MAPS_API_KEY);
       const location = new Location(queryData, mapsResponse.body.results[0]);
       res.send(location);
     });
@@ -37,22 +35,24 @@ function Location(queryData, geoData) {
 
 app.get('/weather', (request, response) => {
   try {
-    const weatherData = searchToweather(request.query.data);
-    response.send(weatherData);
+    const weaURL = `https://api.darksky.net/forecast/${
+      process.env.DARKSKY_API_KEY
+    }/${request.query.data.latitude},${request.query.data.longitude}`;
+    superagent.get(weaURL).end((err, weatherResponse) => {
+      console.log(weatherResponse.body);
+      const weatherData = parseWeatherResponse(weatherResponse.body);
+      response.send(weatherData);
+    });
   } catch (error) {
     handleError(error, response);
   }
 });
 
 //helper
-function searchToweather() {
-  let arr = [];
-  const weaData = require('./data/darksky.json');
-
-  for (let i = 0; i < weaData.daily.data.length; i++) {
-    arr.push(new Weather(weaData.daily.data[i]));
-  }
-  return arr;
+function parseWeatherResponse(data) {
+  return data.daily.data.map(day => {
+    return new Weather(day);
+  });
 }
 
 function Weather(day) {
